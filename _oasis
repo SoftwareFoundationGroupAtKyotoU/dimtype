@@ -1,0 +1,22 @@
+OASISFormat: 0.4
+Name:        dimtype
+Version:     1.0.0
+Synopsis:    Dimension type system
+Authors:     KINOSHITA Minoru
+License:     MIT
+Plugins:     META (0.4), DevFiles (0.4)
+BuildTools:  ocamlbuild
+
+Library "dimtype"
+  Path: lib
+  Modules: Infer
+  InternalModules: Util, Algebra, Typ, Id
+  BuildDepends: num, str
+
+Executable "test_suite"
+  Path: t
+  MainIs: test.ml
+  BuildDepends: dimtype
+
+Test "test_suite"
+  Command: $test_suite

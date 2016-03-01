@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: e82375b02c3ed1e406fa17d1a81a79e5)
+version = "1.0.0"
+description = "Dimension type system"
+requires = "num str"
+archive(byte) = "dimtype.cma"
+archive(byte, plugin) = "dimtype.cma"
+archive(native) = "dimtype.cmxa"
+archive(native, plugin) = "dimtype.cmxs"
+exists_if = "dimtype.cma"
+# OASIS_STOP
+
