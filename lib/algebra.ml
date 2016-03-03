@@ -1,3 +1,5 @@
+open Util
+
 module type Setoid = sig
   type t
   val eq : t -> t -> bool
@@ -69,15 +71,12 @@ module Environment = struct
     let of_list e = e
 
     let eq e1 e2 =
-      let cmp d1 d2 =
-        if Dom.eq d1 d2
-        then 0
-        else compare d1 d2
-      in
-      let open List in
       doms e1 @ doms e2
-      |> sort_uniq cmp
-      |> for_all (fun k -> Cod.eq (assoc k e1) (assoc k e2))
+      |> Util.remove_duplicates ~eq:Dom.eq
+      |> List.for_all
+          (fun k ->
+            try  Cod.eq (find k e1) (find k e2)
+            with Not_found -> false)
 
     let size = List.length
 
@@ -129,6 +128,9 @@ module Vect = struct
     val add : t -> t -> t
     val sub : t -> t -> t
     val subst : t -> basis -> t -> t
+    val mapv : (coeff -> coeff) -> t -> t
+    val filter : (basis * coeff -> bool) -> t -> t
+    val filterv : (coeff -> bool) -> t -> t
     val pp : pp_empty:(Format.formatter -> unit -> unit)
       -> pp_sep:(Format.formatter -> unit -> unit)
       -> pp_pair:(Format.formatter -> (basis * coeff) -> unit)
@@ -154,11 +156,11 @@ module Vect = struct
 
     let empty = E.empty
 
-    let eq v1 v2 = E.eq v1 v2
-
     let size = E.size
 
     let normalize v = E.filterv (fun c -> not Coeff.(eq c zero)) v
+
+    let eq v1 v2 = E.eq (normalize v1) (normalize v2)
 
     let coeff b v =
       match E.find_opt b v with
@@ -172,24 +174,28 @@ module Vect = struct
     let inv v = E.mapv (fun c -> Coeff.(zero - c)) v
 
     let add v1 v2 =
-      let vs = bases v1 @ bases v2 |> List.sort_uniq compare in
-      List.map
-        (fun v ->
-           let c =
-             match E.find_opt v v1, E.find_opt v v2 with
-             | Some c1, Some c2 -> Coeff.(c1 + c2)
-             | Some c1, None    -> c1
-             | None   , Some c2 -> c2
-             | None   , None    -> failwith "binary_operation"
-           in
-           v, c)
-        vs
+      bases v1 @ bases v2
+      |> Util.remove_duplicates ~eq:Basis.eq
+      |> List.map
+          (fun b ->
+            let c =
+              match E.find_opt b v1, E.find_opt b v2 with
+              | Some c1, Some c2 -> Coeff.(c1 + c2)
+              | Some c1, None    -> c1
+              | None   , Some c2 -> c2
+              | None   , None    -> failwith "Vect.add"
+            in
+            b, c)
       |> E.of_list
       |> normalize
 
     let sub v1 v2 = add v1 (inv v2)
 
     let subst v b v' = add (remove b v) (scalar (coeff b v) v')
+
+    let mapv = E.mapv
+    let filter = E.filter
+    let filterv = E.filterv
 
     let pp ~pp_empty ~pp_sep ~pp_pair fmt v =
       if E.is_empty v
@@ -206,6 +212,95 @@ module Vect = struct
       let ( + ) = ( + )
       let ( - ) = ( - )
       let ( * ) = ( * )
-      let eq x y = compare x y = 0
+      let eq = ( = )
     end)
+end
+
+module Powerset = struct
+  type t = Vect.Int.t
+
+  let vars      = Vect.Int.bases
+  let zero      = Vect.Int.empty
+  let unit      = Vect.Int.unit
+  let exponent  = Vect.Int.coeff
+  let mul       = Vect.Int.add
+  let normalize = Vect.Int.normalize
+  let remove    = Vect.Int.remove
+  let eq        = Vect.Int.eq
+  let pp fmt ps =
+    Vect.Int.pp
+      ~pp_empty:(fun fmt () -> Format.fprintf fmt "")
+      ~pp_sep:(fun fmt () -> Format.fprintf fmt "")
+      ~pp_pair:(fun fmt (v, p) -> Format.fprintf fmt "%a^%a" Id.pp v pp_int p)
+      fmt ps
+
+  let to_string = string_of pp
+end
+
+module Polynomial = struct
+  module P = Vect.Make(Powerset)(NumField)
+
+  type t = P.t
+
+  let of_list l = l
+           |> List.map (fun (v, n) -> (Powerset.normalize v, n))
+           |> P.of_list
+
+  let to_list = P.to_list
+
+  let vars p = List.map Powerset.vars (P.bases p)
+           |> List.flatten
+           |> List.sort_uniq compare
+
+  let bases = P.bases
+  let eq = P.eq
+  let normalize = P.normalize
+  let zero = P.empty
+  let const c = P.of_list [Powerset.zero, c]
+  let coeff = P.coeff
+  let unit = P.unit
+  let scalar = P.scalar
+  let add = P.add
+  let sub = P.sub
+
+  let mul p1 p2 =
+    let bs1 = P.bases p1
+    and bs2 = P.bases p2
+    in
+    let all_pairs = List.(flatten (map (fun b1 -> map (fun b2 -> (b1, b2)) bs2) bs1))
+    in
+    List.fold_left
+      (fun acc (b1, b2) ->
+        let b = Powerset.mul b1 b2
+        and c = Num.(P.coeff b1 p1 */ P.coeff b2 p2)
+        in
+        P.add (P.of_list [b, c]) acc)
+      zero
+      all_pairs
+      
+  let pow p n =
+    let rec loop acc = function
+      | 0 -> acc
+      | n -> loop (mul p acc) (n - 1)
+    in
+    loop (const (Num.num_of_int 1)) n
+
+  let subst p x p' =
+    let powerset_subst ps x q =
+      let c = Powerset.exponent x ps in
+      mul (unit (Powerset.remove x ps)) (pow q c)
+    in
+    let p = to_list p in
+    let l = List.map (fun (ps, c) -> powerset_subst ps x p', c) p in
+    List.fold_left (fun acc (p, c) -> add acc (scalar c p)) zero l
+
+  let pp fmt v =
+    P.pp
+      ~pp_empty:(fun fmt () -> Format.fprintf fmt "0")
+      ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ + ")
+      ~pp_pair:(fun fmt (ps, c) -> Format.fprintf fmt "%a%a" pp_num c Powerset.pp ps)
+      fmt
+      v
+
+  let to_string v = string_of pp v
 end

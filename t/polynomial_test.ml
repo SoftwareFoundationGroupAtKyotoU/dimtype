@@ -1,10 +1,11 @@
 open Util
-open Polynomial
+open Algebra.Polynomial
 
 let x = Id.of_string "x"
 let y = Id.of_string "y"
 let z = Id.of_string "z"
           
+(* experimental code *)
 let powerset_of_string str =
   let extract_power var =
     let regexp = Str.regexp (var ^ "\\(\\^\\([0-9]+\\)\\)?") in
@@ -15,10 +16,10 @@ let powerset_of_string str =
   in
   let alphabets = "abcdefghijklmnopqrstuvwxyz" |> Str.(split (regexp "")) in
   List.fold_left
-    (fun acc v -> (Id.of_string v, ni (extract_power v)) :: acc)
+    (fun acc v -> (Id.of_string v, extract_power v) :: acc)
     []
     alphabets
-  |> Algebra.Vect.Num.of_list
+  |> Algebra.Vect.Int.of_list
 
 let monomial_of_string str =
   let coeff =
@@ -52,12 +53,10 @@ let polynomial_of_string str =
   List.fold_left
     (fun acc (d, t) ->
        let c, ps = monomial_of_string t in
-       if d = "+"
-       then (ps, ni c) :: acc
-       else (ps, ni (-c)) :: acc)
-    []
+       let m = [ (ps, ni (if d = "+" then c else -c)) ] |> of_list in
+       add m acc)
+    zero
     pairs
-  |> of_list
 
 let pos = polynomial_of_string
 
@@ -65,10 +64,7 @@ let p1 = pos "3x^2y +  xz^2"
 let p2 = pos " x^2y - 2xz^2 + yz"
 let p3 = pos "4x^2y -  xz^2 + yz"
 let p4 = pos "x + y"
-let p5 = pos "xz^2 + 3x^2y + 6xy^2 + 3y^3"
-
-let () =
-  print_endline (to_string p1)
+let p5 = pos "xz^2 + 3x^2y + 6xy^2 + 3y^3 + yz^2"
 
 let test_vars () =
   Printf.eprintf "test_vars\n";
@@ -77,14 +73,11 @@ let test_vars () =
   assert (vars p3 = List.sort_uniq compare [x; y; z]);
   assert (vars p4 = List.sort_uniq compare [x; y])
 
-let () =
-  print_endline (to_string (pos "xy+yx"));
-  print_endline (to_string (pos "2xy"))
-
 let test_eq () =
   Printf.eprintf "test_eq\n";
   assert (eq (pos "xy") (pos "yx"));
-  assert (eq (pos "xy+yx") (pos "2xy"))
+  assert (eq (pos "xy+yx") (pos "2xy"));
+  assert (eq (pos "x^0") (pos "y^0"))
 
 let test_add () =
   Printf.eprintf "test_add\n";
@@ -96,8 +89,19 @@ let test_sub () =
   assert (eq (sub p3 p2) p1);
   assert (eq (sub p3 p1) p2)
 
+let test_mul () =
+  Printf.eprintf "test_mul\n";
+  assert (eq (mul p4 p4) (pos "x^2+2xy+y^2"));
+  assert (eq (mul p4 (const (Num.num_of_int 1))) p4);
+  assert (eq (mul p4 (const (ni 0))) (const (ni 0)))
+
+let test_pow () =
+  Printf.eprintf "test_pow\n";
+  assert (eq (pow p4 3) (pos "x^3+3x^2y+3xy^2+y^3"))
+
 let test_subst () =
   Printf.eprintf "test_subst\n";
+  assert (eq (subst (pos "x+y") x (pos "x")) (pos "x+y"));
   assert (eq (subst p1 x p4) p5)
 
 let suite =
@@ -105,6 +109,8 @@ let suite =
   ; test_eq
   ; test_add
   ; test_sub
+  ; test_mul
+  ; test_pow
   ; test_subst
   ]
 

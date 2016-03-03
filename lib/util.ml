@@ -12,9 +12,9 @@ let option_value = function
 
 (* List *)
 
-let rec remove_first a = function
+let rec remove_first ~eq a = function
   | []     -> []
-  | x :: l -> if x = a then l else x :: (remove_first a l)
+  | x :: l -> if eq x a then l else x :: (remove_first ~eq a l)
 
 let rec mem ~eq a = function
   | []     -> false
@@ -96,6 +96,8 @@ let num_of_float f =
   loop (ni 0) (ni 1) f 0
 
 let pp_num fmt n = Format.fprintf fmt "%s" (Num.string_of_num n)
+
+let pp_int fmt n = Format.fprintf fmt "%d" n
 
 (* printer *)
 

@@ -72,6 +72,9 @@ module Vect : sig
     (** [subst v k v'] substitute k to v' in v.
         (ex. subst (x + 2 * y) y (x + z) = 3 * x + 2 * z) *)
     val subst : t -> basis -> t -> t
+    val mapv : (coeff -> coeff) -> t -> t
+    val filter : (basis * coeff -> bool) -> t -> t
+    val filterv : (coeff -> bool) -> t -> t
     val pp : pp_empty:(Format.formatter -> unit -> unit)
       -> pp_sep:(Format.formatter -> unit -> unit)
       -> pp_pair:(Format.formatter -> (basis * coeff) -> unit)
@@ -84,8 +87,46 @@ module Vect : sig
                                                 and type coeff = C.t
 
   module Num : S with type basis = Id.t
-                and type coeff = NumField.t
+                  and type coeff = NumField.t
 
   module Int : S with type basis = Id.t
                   and type coeff = int
+end
+
+module Powerset : sig
+  type t
+
+  val vars : t -> Id.t list
+  val zero : t
+  val unit : Id.t -> t
+  val mul : t -> t -> t
+  val normalize : t -> t
+  val remove : Id.t -> t -> t
+  val eq : t -> t -> bool
+  val pp : Format.formatter -> t -> unit
+  val to_string : t -> string
+end
+
+module Polynomial : sig
+  type t
+
+  val of_list : (Vect.Int.t * Num.num) list -> t
+  val to_list : t -> (Vect.Int.t * Num.num) list
+
+  val vars : t -> Id.t list
+  val bases : t -> Vect.Int.t list
+  val eq : t -> t -> bool
+  val normalize : t -> t
+  val zero : t
+  val const : Num.num -> t
+  val coeff : Vect.Int.t -> t -> Num.num
+  val unit : Powerset.t -> t
+  val add : t -> t -> t
+  val sub : t -> t -> t
+  val mul : t -> t -> t
+  val pow : t -> int -> t
+  val subst : t -> Id.t -> t -> t
+
+  val pp : Format.formatter -> t -> unit
+  val to_string : t -> string
 end
