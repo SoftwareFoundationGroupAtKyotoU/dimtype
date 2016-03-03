@@ -1,38 +1,20 @@
-(* open Util *)
-(* open Vect *)
+open Util
 
-(* type t = Id.t Vect.t *)
+include Algebra.Vect.Num
 
-(* let powi typ i = scalar (ni i) typ *)
-(* let pown typ n = scalar n typ *)
-
-(* let to_list = to_list *)
-(* let of_list = of_list *)
-(* let vars = vars *)
-(* let unit = unit *)
-(* let eq = eq *)
-(* let size = size *)
-(* let coeff = coeff *)
-(* let remove = remove *)
-(* let scalar = scalar *)
-(* let inv = inv *)
-(* let add = add *)
-(* let sub = sub *)
-(* let subst = subst *)
-
-(* let pp ?(logarithm=false) fmt typ = *)
-(*   if logarithm *)
-(*   then pp *)
-(*          ~pp_empty:(fun fmt () -> Format.fprintf fmt "0") *)
-(*          ~pp_sep:(fun fmt () -> Format.fprintf fmt " +@ ") *)
-(*          ~pp_pair:(fun fmt (k, v) -> *)
-(*            Format.fprintf fmt "@[<2>%a@ * %a@]" Id.pp k pp_num v) *)
-(*          fmt *)
-(*          typ *)
-(*   else pp *)
-(*          ~pp_empty:(fun fmt () -> Format.fprintf fmt "0") *)
-(*          ~pp_sep:(fun fmt () -> Format.fprintf fmt " *@ ") *)
-(*          ~pp_pair:(fun fmt (k, v) -> *)
-(*            Format.fprintf fmt "%a^%a" Id.pp k pp_num v) *)
-(*          fmt *)
-(*          typ *)
+let pp ?(logarithm=false) fmt typ =
+  if logarithm
+  then pp
+         ~pp_empty:(fun fmt () -> Format.fprintf fmt "0")
+         ~pp_sep:(fun fmt () -> Format.fprintf fmt " +@ ")
+         ~pp_pair:(fun fmt (k, v) ->
+           Format.fprintf fmt "@[<2>%a@ * %a@]" Id.pp k pp_num v)
+         fmt
+         typ
+  else pp
+         ~pp_empty:(fun fmt () -> Format.fprintf fmt "0")
+         ~pp_sep:(fun fmt () -> Format.fprintf fmt " *@ ")
+         ~pp_pair:(fun fmt (k, v) ->
+           Format.fprintf fmt "%a^%a" Id.pp k pp_num v)
+         fmt
+         typ
