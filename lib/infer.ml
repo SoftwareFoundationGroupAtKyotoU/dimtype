@@ -61,7 +61,71 @@ let solve_tyconstr (eqns : tyconstr list) : (Id.t * Vect.Num.t) list =
   in
   solve [] eqns
 
+(* A type variable is insignificant iff if it is substituted
+   for dimensionless, any program variable is still not dimensionless.
+
+   Examples
+
+   In the following type environment, B is insignificant:
+
+   x : A * B, y : A
+
+   In the following type environment, A or B are insignificant:
+
+   x : A * B, y : A * B
+
+   In the following type environment, no type variables are insignificant:
+
+   x : A, y : B * C, z : B
+*)
+
+let crush_insignificant_tvars1 tenv vars =
+  let insignificant tenv tv =
+    List.for_all
+      (fun v -> Typ.remove tv (Tenv.find v tenv) <> Typ.empty)
+      vars
+  in
+  let tvars =
+    List.(map Typ.bases (Tenv.cods tenv)
+          |> concat
+          |> remove_duplicates ~eq:Id.eq)
+  in
+  List.fold_left
+    (fun tenv tv ->
+      if insignificant tenv tv
+      then Tenv.mapv (Typ.remove tv) tenv
+      else tenv)
+    tenv
+    tvars
+
+let crush_insignificant_tvars2 tenv vars =
+  (* Return whether it is ok to substitute [tvar] by [typ]. *)
+  let insignificant tenv tvar typ =
+    let tenv' = Tenv.mapv (fun typ' -> Typ.subst typ' tvar typ) tenv in
+    if List.for_all (fun v -> Tenv.find v tenv' <> Typ.empty) vars
+    then Some tenv'
+    else None
+  in
+  let rec loop tenv = function
+    | []         -> tenv
+    | ty :: rest ->
+       match Vect.Num.to_list (Typ.to_vect ty) with
+       | []          -> loop tenv rest
+       | (v, d) :: r ->
+          let ty' = Vect.Num.(scalar Num.(ni (-1) // d) (of_list r)) |> Typ.of_vect in
+          match insignificant tenv v ty' with
+          | Some tenv' -> loop tenv' (List.map (fun t -> Typ.subst t v ty') rest)
+          | None       -> loop tenv rest
+  in
+  loop tenv (Tenv.cods tenv)
+
 let infer (cs : constr list) : Tenv.t =
+
+  let program_vars =
+    List.(map (function Eq (_, p) | Po p -> Polynomial.vars p) cs
+          |> flatten
+          |> remove_duplicates ~eq:Id.eq)
+  in
 
   let cs =
     (* auxiliary variables used only in type inference *)
@@ -78,7 +142,9 @@ let infer (cs : constr list) : Tenv.t =
   in
 
   let vars =
-    List.(map (function Eq (_, p) | Po p -> Polynomial.vars p) cs |> flatten)
+    List.(map (function Eq (_, p) | Po p -> Polynomial.vars p) cs
+          |> flatten
+          |> remove_duplicates ~eq:Id.eq)
   in
   let tvar_id = Id.unique ~prefix:"ty" in
   let tenv = vars
@@ -99,19 +165,29 @@ let infer (cs : constr list) : Tenv.t =
   (*       v) *)
   (*   sol; *)
 
-  Tenv.mapv
-    (fun typ ->
-      List.fold_left
-        (fun acc (x, v) -> Vect.Num.subst acc x v)
-        (Typ.to_vect typ)
-        sol
-      |> Typ.of_vect)
-    tenv
+  let tenv =
+    Tenv.mapv
+      (fun typ ->
+        List.fold_left
+          (fun acc (x, v) -> Vect.Num.subst acc x v)
+          (Typ.to_vect typ)
+          sol
+        |> Typ.of_vect)
+      tenv
+  in
+
+  let tenv = crush_insignificant_tvars1 tenv program_vars in
+  let tenv = crush_insignificant_tvars2 tenv program_vars in
+  tenv
 
 let () =
   let x = Id.of_string "x"
   and y = Id.of_string "y"
   and z = Id.of_string "z"
+  and v = Id.of_string "v"
+  and dt = Id.of_string "dt"
+  and t = Id.of_string "t"
+  and a = Id.of_string "a"
   in
   (* x^2y + xz^2 *)
   let p1 = Polynomial.of_list
@@ -119,7 +195,18 @@ let () =
     ; Powerset.of_list [ (x, 1); (z, 2) ], ni 3
     ]
   in
-  print_endline (Tenv.to_string (infer [Po p1]))
+  print_endline ((Tenv.to_string (infer [Po p1])) ^ "\n");
+
+  let cs =
+    [ Eq (x, Polynomial.of_list [ Powerset.of_list [ (x, 1) ], ni 1
+                                ; Powerset.of_list [ (v, 1); (dt, 1) ], ni 1 ])
+    ; Eq (v, Polynomial.of_list [ Powerset.of_list [ (v, 1) ], ni 1
+                                ; Powerset.of_list [ (a, 1); (dt, 1) ], ni 1 ])
+    ; Eq (t, Polynomial.of_list [ Powerset.of_list [ (t, 1) ], ni 1
+                                ; Powerset.of_list [ (dt, 1) ], ni 1 ])
+    ]
+  in
+  print_endline (Tenv.to_string (infer cs))
 
 (*
 open Imp.Syntax
