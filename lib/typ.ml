@@ -2,6 +2,9 @@ open Util
 
 include Algebra.Vect.Num
 
+let of_vect t = t
+let to_vect t = t
+
 let pp ?(logarithm=false) fmt typ =
   if logarithm
   then pp

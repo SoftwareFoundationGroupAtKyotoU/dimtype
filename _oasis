@@ -20,3 +20,8 @@ Executable "test_suite"
 
 Test "test_suite"
   Command: $test_suite
+
+Executable "infer"
+  Path: lib
+  MainIs: infer.ml
+  BuildDepends: dimtype

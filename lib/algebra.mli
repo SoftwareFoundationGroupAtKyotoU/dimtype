@@ -96,6 +96,9 @@ end
 module Powerset : sig
   type t
 
+  val to_list : t -> (Id.t * int) list
+  val of_list : (Id.t * int) list -> t
+
   val vars : t -> Id.t list
   val zero : t
   val unit : Id.t -> t
@@ -110,16 +113,17 @@ end
 module Polynomial : sig
   type t
 
-  val of_list : (Vect.Int.t * Num.num) list -> t
-  val to_list : t -> (Vect.Int.t * Num.num) list
+  val of_list : (Powerset.t * Num.num) list -> t
+  val to_list : t -> (Powerset.t * Num.num) list
 
+  val map : (Powerset.t * Num.num -> Powerset.t * Num.num) -> t -> t
   val vars : t -> Id.t list
-  val bases : t -> Vect.Int.t list
+  val bases : t -> Powerset.t list
   val eq : t -> t -> bool
   val normalize : t -> t
   val zero : t
   val const : Num.num -> t
-  val coeff : Vect.Int.t -> t -> Num.num
+  val coeff : Powerset.t -> t -> Num.num
   val unit : Powerset.t -> t
   val add : t -> t -> t
   val sub : t -> t -> t

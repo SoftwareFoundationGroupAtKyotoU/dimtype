@@ -7,3 +7,9 @@ let of_string v = v
 let eq x y = x = y
 (* let id_str s = MParser_RE.(regexp (make_regexp "[A-Za-z_][A-Za-z0-9_]*")) s *)
 (* let parse s = MParser.(id_str >>= fun id -> return id) s *)
+
+let unique ~prefix =
+  let counter = ref (-1) in
+  fun () ->
+    incr counter;
+    prefix ^ string_of_int !counter

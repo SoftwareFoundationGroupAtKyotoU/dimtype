@@ -112,11 +112,3 @@ let string_of pp e = Format.(pp str_formatter e; flush_str_formatter ())
 (*   match parse_string p s () with *)
 (*   | Success r        -> r *)
 (*   | Failed  (msg, _) -> raise (Syntax_error msg) *)
-
-(* project specific *)
-
-let unique_name ~prefix =
-  let counter = ref (-1) in
-  fun () ->
-    incr counter;
-    prefix ^ string_of_int !counter

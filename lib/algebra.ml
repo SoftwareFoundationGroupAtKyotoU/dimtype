@@ -219,6 +219,8 @@ end
 module Powerset = struct
   type t = Vect.Int.t
 
+  let to_list   = Vect.Int.to_list
+  let of_list   = Vect.Int.of_list
   let vars      = Vect.Int.bases
   let zero      = Vect.Int.empty
   let unit      = Vect.Int.unit
@@ -247,6 +249,8 @@ module Polynomial = struct
            |> P.of_list
 
   let to_list = P.to_list
+
+  let map f p = List.map f (of_list p) |> to_list
 
   let vars p = List.map Powerset.vars (P.bases p)
            |> List.flatten

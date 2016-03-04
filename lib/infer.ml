@@ -1,3 +1,126 @@
+open Util
+open Algebra
+
+module Tenv = struct
+  include Environment.Make(Id)(Typ)
+
+  let pp = pp
+    ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
+    ~pp_pair:(fun fmt (x, typ) ->
+      Format.fprintf fmt "%a : %a" Id.pp x (Typ.pp ~logarithm:false) typ)
+
+  let to_string = string_of pp
+end
+
+type constr =
+  | Eq of Id.t * Polynomial.t
+  | Po of Polynomial.t
+
+type tyconstr = Vect.Num.t
+
+let tyconstr_of_constr (cs : constr list) (tenv : Tenv.t) : tyconstr list =
+
+  let tyconstr_of_polynomial (p : Polynomial.t) : tyconstr list =
+    let typ_of_powerset (ps : Powerset.t) : Typ.t =
+      List.fold_left
+        (fun acc (x, c) -> Typ.(add acc (scalar (ni c) (Tenv.find x tenv))))
+        Typ.empty
+        (Powerset.to_list ps)
+    in
+    let typs =
+      List.map
+        (fun (ps, _) -> typ_of_powerset ps)
+        (Polynomial.to_list p)
+    in
+    match typs with
+    | [] | [_] -> []
+    | x :: rest -> List.map (fun typ -> Typ.(to_vect (sub typ x))) rest
+  in
+
+  cs
+  |> List.map
+      (function
+      | Eq (x, p) -> tyconstr_of_polynomial Polynomial.(add (unit (Powerset.unit x)) p)
+      | Po p      -> tyconstr_of_polynomial p)
+  |> List.flatten
+
+let solve_tyconstr (eqns : tyconstr list) : (Id.t * Vect.Num.t) list =
+  let rec solve sol eqns =
+    match eqns with
+    | []          -> sol
+    | eqn :: rest ->
+      begin
+        match Vect.Num.to_list eqn with
+        | []          -> solve sol rest
+        | (x, c) :: v ->
+          let v = Vect.Num.(scalar Num.(ni (-1) // c) (of_list v)) in
+          let sol = List.map (fun (y, v') -> y, Vect.Num.subst v' x v) sol in
+          let rest = List.map (fun v' -> Vect.Num.subst v' x v) rest in
+          solve ((x, v) :: sol) rest
+      end
+  in
+  solve [] eqns
+
+let infer (cs : constr list) : Tenv.t =
+
+  let cs =
+    (* auxiliary variables used only in type inference *)
+    let avar_id = Id.unique ~prefix:"inf" in
+    let append_aux_tvars p =
+      Polynomial.map
+        (fun (ps, c) -> (Powerset.(mul ps (avar_id () |> unit)), c))
+        p
+    in
+    List.map (function
+    | Eq (x, p) -> Eq (x, append_aux_tvars p)
+    | Po p      -> Po (append_aux_tvars p)
+    ) cs
+  in
+
+  let vars =
+    List.(map (function Eq (_, p) | Po p -> Polynomial.vars p) cs |> flatten)
+  in
+  let tvar_id = Id.unique ~prefix:"ty" in
+  let tenv = vars
+             |> List.map (fun v -> (v, Typ.unit @@ tvar_id ()))
+             |> Tenv.of_list
+  in
+  let sol = solve_tyconstr (tyconstr_of_constr cs tenv) in
+
+  (* List.iter *)
+  (*   (fun (x, v) -> *)
+  (*     let open Format in *)
+  (*     fprintf std_formatter "%a : %a\n" *)
+  (*       Id.pp x *)
+  (*       (Vect.Num.pp *)
+  (*          ~pp_empty:(fun fmt () -> fprintf fmt "1") *)
+  (*          ~pp_sep:(fun fmt () -> fprintf fmt "*") *)
+  (*          ~pp_pair:(fun fmt (x, c) -> fprintf fmt "%a^%a" Id.pp x pp_num c)) *)
+  (*       v) *)
+  (*   sol; *)
+
+  Tenv.mapv
+    (fun typ ->
+      List.fold_left
+        (fun acc (x, v) -> Vect.Num.subst acc x v)
+        (Typ.to_vect typ)
+        sol
+      |> Typ.of_vect)
+    tenv
+
+let () =
+  let x = Id.of_string "x"
+  and y = Id.of_string "y"
+  and z = Id.of_string "z"
+  in
+  (* x^2y + xz^2 *)
+  let p1 = Polynomial.of_list
+    [ Powerset.of_list [ (x, 2); (y, 1) ], ni 2
+    ; Powerset.of_list [ (x, 1); (z, 2) ], ni 3
+    ]
+  in
+  print_endline (Tenv.to_string (infer [Po p1]))
+
 (*
 open Imp.Syntax
 open Normalize
@@ -169,4 +292,3 @@ let infer c =
   (vtenv, ctenv, map_aexp opt_one c)
 *)
 
-let _ = print_endline "infer"

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: bf2a612049503e1143dc4538bdaf5acc)
+# DO NOT EDIT (digest: ae3c1ee8360814a5a168ea38179fd2ef)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,8 +16,6 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library dimtype
 "lib/dimtype.cmxs": use_dimtype
-<lib/*.ml{,i,y}>: pkg_num
-<lib/*.ml{,i,y}>: pkg_str
 # Executable test_suite
 "t/test.byte": pkg_num
 "t/test.byte": pkg_str
@@ -25,4 +23,11 @@ true: annot, bin_annot
 <t/*.ml{,i,y}>: pkg_num
 <t/*.ml{,i,y}>: pkg_str
 <t/*.ml{,i,y}>: use_dimtype
+# Executable infer
+"lib/infer.byte": pkg_num
+"lib/infer.byte": pkg_str
+"lib/infer.byte": use_dimtype
+<lib/*.ml{,i,y}>: pkg_num
+<lib/*.ml{,i,y}>: pkg_str
+<lib/*.ml{,i,y}>: use_dimtype
 # OASIS_STOP

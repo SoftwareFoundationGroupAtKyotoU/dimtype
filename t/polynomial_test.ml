@@ -19,7 +19,7 @@ let powerset_of_string str =
     (fun acc v -> (Id.of_string v, extract_power v) :: acc)
     []
     alphabets
-  |> Algebra.Vect.Int.of_list
+  |> Algebra.Powerset.of_list
 
 let monomial_of_string str =
   let coeff =
