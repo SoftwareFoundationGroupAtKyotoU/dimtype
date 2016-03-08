@@ -9,7 +9,7 @@ BuildTools:  ocamlbuild
 
 Library "dimtype"
   Path: lib
-  Modules: Infer
+  Modules: Dimtype
   InternalModules: Util, Algebra, Typ, Id
   BuildDepends: num, str
 
@@ -20,8 +20,3 @@ Executable "test_suite"
 
 Test "test_suite"
   Command: $test_suite
-
-Executable "infer"
-  Path: lib
-  MainIs: infer.ml
-  BuildDepends: dimtype
