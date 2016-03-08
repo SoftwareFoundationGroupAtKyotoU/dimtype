@@ -9,8 +9,8 @@ BuildTools:  ocamlbuild
 
 Library "dimtype"
   Path: lib
-  Modules: Dimtype, Algebra
-  InternalModules: Util, Typ, Id
+  Modules: Dimtype, Algebra, Typ, Id
+  InternalModules: Util
   BuildDepends: num, str
 
 AlphaFeatures: ocamlbuild_more_args
