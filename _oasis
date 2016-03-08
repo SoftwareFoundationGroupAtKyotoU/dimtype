@@ -9,9 +9,20 @@ BuildTools:  ocamlbuild
 
 Library "dimtype"
   Path: lib
-  Modules: Dimtype
-  InternalModules: Util, Algebra, Typ, Id
+  Modules: Dimtype, Algebra
+  InternalModules: Util, Typ, Id
   BuildDepends: num, str
+
+AlphaFeatures: ocamlbuild_more_args
+Document "dimtype"
+  Type: ocamlbuild (0.4)
+  BuildTools: ocamldoc
+
+  Title: API reference for dimtype
+  XOCamlbuildPath: .
+  XOCamlbuildExtraArgs:
+    "-docflags '-colorize-code -short-functors -charset utf-8'"
+  XOCamlbuildLibraries: dimtype
 
 Executable "test_suite"
   Path: t
@@ -20,3 +31,13 @@ Executable "test_suite"
 
 Test "test_suite"
   Command: $test_suite
+
+Flag example
+  Description: build examples
+  Default: false
+
+Executable "imp"
+  Path: example
+  MainIs: imp.ml
+  Build$: flag(example)
+  BuildDepends: dimtype

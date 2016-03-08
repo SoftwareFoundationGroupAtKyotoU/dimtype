@@ -1,9 +1,13 @@
-(** Setoid is a type equipped with an equivalence relation. *)
+(** Algebraic modules. *)
+
+(** [Setoid] is a module equipped with an equivalence relation. *)
 module type Setoid = sig
   type t
   val eq : t -> t -> bool
 end
 
+(** [Environment] is a basic module which stores mappings from [dom] values to
+    [cod] values. *)
 module Environment : sig
   module type S = sig
     type dom
@@ -37,6 +41,9 @@ module Environment : sig
                                                  and type cod = Cod.t
 end
 
+(** [Field] is a mathematical structure equipped with +, *, -, inverse, 0, 1,
+    but this signature don't require inverse function and the properties on
+    these components. *)
 module type Field = sig
   include Setoid
   val zero : t
@@ -46,8 +53,10 @@ module type Field = sig
   val ( * ) : t -> t -> t
 end
 
+(** [NumField] is the field of [Num.num]. *)
 module NumField : Field with type t = Num.num
 
+(** [Vect] is a module expresses a vector space. *)
 module Vect : sig
   module type S = sig
     type basis
@@ -69,8 +78,6 @@ module Vect : sig
     val inv : t -> t
     val add : t -> t -> t
     val sub : t -> t -> t
-    (** [subst v k v'] substitute k to v' in v.
-        (ex. subst (x + 2 * y) y (x + z) = 3 * x + 2 * z) *)
     val subst : t -> basis -> t -> t
     val mapv : (coeff -> coeff) -> t -> t
     val filter : (basis * coeff -> bool) -> t -> t

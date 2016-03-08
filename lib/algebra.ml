@@ -247,10 +247,11 @@ module Polynomial = struct
   let of_list l = l
            |> List.map (fun (v, n) -> (Powerset.normalize v, n))
            |> P.of_list
+           |> P.normalize
 
   let to_list = P.to_list
 
-  let map f p = List.map f (of_list p) |> to_list
+  let map f p = List.map f (of_list p) |> to_list |> P.normalize
 
   let vars p = List.map Powerset.vars (P.bases p)
            |> List.flatten
@@ -281,6 +282,7 @@ module Polynomial = struct
         P.add (P.of_list [b, c]) acc)
       zero
       all_pairs
+    |> normalize
       
   let pow p n =
     let rec loop acc = function

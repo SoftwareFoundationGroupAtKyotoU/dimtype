@@ -16,6 +16,15 @@ type constr =
   | Eq of Id.t * Polynomial.t
   | Po of Polynomial.t
 
+let vars_of_constraints cs =
+  let vars_of_constr = function
+    | Eq (x, p) -> x :: Polynomial.vars p
+    | Po p      -> Polynomial.vars p
+  in
+  List.map vars_of_constr cs
+  |> List.flatten
+  |> remove_duplicates ~eq:Id.eq
+
 (* [tyconstr] is a constraint on types.  The inhabitants of [tyconstr] should
    be dimensionless. *)
 type tyconstr = Typ.t
@@ -182,11 +191,7 @@ let crush_unnecessary_tvars2 tenv vars =
 
 let infer (cs : constr list) : (Tenv.t * Typ.t list) =
 
-  let program_vars =
-    List.(map (function Eq (_, p) | Po p -> Polynomial.vars p) cs
-          |> flatten
-          |> remove_duplicates ~eq:Id.eq)
-  in
+  let program_vars = vars_of_constraints cs in
 
   (* multiply each monomial of polynomial in `cs` by auxiliary variables *)
   let cs =
@@ -203,12 +208,8 @@ let infer (cs : constr list) : (Tenv.t * Typ.t list) =
     ) cs
   in
 
-  (* `vars` includes auxiliary variables *)
-  let vars =
-    List.(map (function Eq (_, p) | Po p -> Polynomial.vars p) cs
-          |> flatten
-          |> remove_duplicates ~eq:Id.eq)
-  in
+  (* [vars] includes auxiliary variables *)
+  let vars = vars_of_constraints cs in
 
   (* create a fresh type environment *)
   let tenv =
@@ -240,7 +241,7 @@ let infer (cs : constr list) : (Tenv.t * Typ.t list) =
     (fun (tenv, ctenv) v ->
       let typ = Tenv.find v tenv in
       Tenv.remove v tenv,
-      if Typ.is_empty typ then ctenv else typ :: ctenv)
+      if Typ.is_empty typ || mem ~eq:Typ.eq typ ctenv then ctenv else typ :: ctenv)
     (tenv, [])
     avars
 
