@@ -81,48 +81,95 @@ let dump_sol sol =
         (Typ.pp ~logarithm:true) v)
     sol
 
-(* Introducing auxiliary program variables causes to lose the original relations
-   between the program variables, and it results in weak templates.
+(* The dimension type system by Kennedy has a flaw and we cannot apply this type
+   system directory.  This dimension type system gives dimensionless to the
+   constants, but this may causes all program variables be inferred
+   dimensionless.  The dimensionless environment has no hint to make an efficient
+   template, it is needed to avoid such a situation.
 
-   An example:
+   Example:
 
-   Our strategy to introduce auxiliary program variables translates the following
-   program
+     The following program is petter2, which calculates the sum of the squares
+     of natural numbers below N:
 
-     x, v, t := x + v * dt, v + a * dt, t + dt
+     1:  x := 0;
+     2:  y := 0;
+     3:  while y != N do
+     4:    x := x + y^2;
+     5:    y := y + 1
+     6:  end
 
-   into
+     The value of y is incremented by 1 at the line 5, but 1 is dimensionless so
+     y is also dimensionless.  Since there is comparison between N and y and
+     addition of x and y^2, N and x are also dimensionless.
 
-     x, v, t := aux0 * x + aux1 * v * dt,
-                aux2 * v + aux3 * a * dt,
-                aux4 * t + aux 5 * dt.
+     If we modify the line 5 to y := y + k, the dimension type system can infer
+     a non-trivial environment from the modified version of petter2 and we can
+     generate a template from the environment which can be used to calculate an
+     useful invariant efficiently.
 
-   and from this program the following type environment is inferred:
+     The expression like y^2 + y also spoil the dimensional meaning because
+     the only dimension satisfy the constraints calculated from this expression
+     is dimensionless.
 
-     aux0 : 1
-     aux1 : ty3^-1 * ty2^-1 * ty4
-     aux2 : 1
-     aux3 : ty5^-1 * ty2^-1 * ty3
-     aux4 : 1
-     aux5 : ty2^-1 * ty10                                         ... (E1)
-     dt : ty2
-     v : ty3
-     x : ty4
-     a : ty5
-     t : ty10
+   An easy solution to this problem is to regard the monomials in a given program
+   as be multiplied by 1 and to give non-dimensionless types to constants. To
+   regard the monomials are multiplied by 1 makes the expressions such as y^2 + y
+   are typed as non-dimensionless.
 
-   The powersets whose type is equal to ty3^2 are
+   The main function [infer] multiplies fresh variables to each monomial in the
+   given program and infers dimension types as usual, then remove the fresh
+   variables, collect their types, and return the types as the environment of
+   constants.  This implementation has an advantage that it enables the above
+   solution without changing the existing dimension type inferrence algorithm.
 
-     v^2, v * aux3 * a * dt, a^2 * aux3^2 * dt^2                  ... (1)
+   The above solution, however, causes to lose the original relations between
+   the program variables, and it results in weak templates.  We explain this
+   problem by using an example.  Note that in the following explanation we use
+   auxiliary variables as [infer] does since it makes the explanation easy to
+   understand, but to introduce auxiliary variables is not essential and this
+   problem is inevitable to the solution.
 
-   which is fewer than the powersets calculated with the type environment
-   inferred from the original program:
+   Example:
 
-     a^2 * dt^2, a^2 * dt * t, a^2 * t^2, a * dt * v, a * t * v   ... (2)
+     Our strategy to introduce auxiliary program variables translates the
+     following program
 
-   The template generated from (1) misses the powersets needed to find
-   the law of conservation of energy, which can be found when using the
-   template generated from (2).
+       x, v, t := x + v * dt, v + a * dt, t + dt
+
+     into
+
+       x, v, t := aux0 * x + aux1 * v * dt,
+                  aux2 * v + aux3 * a * dt,
+                  aux4 * t + aux 5 * dt.
+
+     and the following type environment is inferred from this program:
+
+       aux0 : 1
+       aux1 : ty3^-1 * ty2^-1 * ty4
+       aux2 : 1
+       aux3 : ty5^-1 * ty2^-1 * ty3
+       aux4 : 1
+       aux5 : ty2^-1 * ty10                                         ... (E1)
+       dt : ty2
+       v : ty3
+       x : ty4
+       a : ty5
+       t : ty10
+
+     The powersets whose types are equal to ty3^2 (= the type of v^2) are
+
+       v^2, v * aux3 * a * dt, a^2 * aux3^2 * dt^2                  ... (1)
+
+     which is fewer than the powersets calculated with the type environment
+     inferred from the original program:
+
+       a^2 * dt^2, a^2 * dt * t, a^2 * t^2, a * dt * v, a * t * v,
+       v^2, a * x                                                   ... (2)
+
+     The template generated from (1) misses the powersets needed to find
+     the law of conservation of energy, which can be found when using the
+     template generated from (2).
 
    In order to address this problem, we eliminate the unnecessary type
    variables.  A type variable is unnecessary if when the type variable
@@ -132,21 +179,38 @@ let dump_sol sol =
    and then substitute by the type such that a auxiliary variable is
    dimensionless (crush_unnecessary_tvars2).
    
-   Examples:
+   Example:
 
-   In the following type environment, it is safe to substitute B by
-   dimensionless:
+     In the following type environment, it is safe to substitute B by
+     dimensionless:
 
-     x : A * B, y : A
+       x : A * B, y : A
 
-   In the following type environment, it is safe to substitute either
-   A or B by dimensionless:
+     In the following type environment, it is safe to substitute either
+     A or B by dimensionless:
 
-     x : A * B, y : A * B
+       x : A * B, y : A * B
 
-   In the following type environment, all type variables are necessary:
+     In the following type environment, all type variables are necessary:
 
-     x : A, y : B * C, z : B
+       x : A, y : B * C, z : B
+
+   Example:
+
+     crush_unnecessary_tvars2 eliminates aux1, aux3, and aux5 from E1 and
+     translates E1 into the following environment:
+
+       (aux0 .. aux5 are all dimensionless, hence we can ignore them)
+       dt : ty10
+       v : ty10^-1 * ty4
+       x : ty4                                                     ... (E1')
+       a : ty10^-2 * ty4
+       t : ty10
+
+     (E1') has usual physical meaning if we think ty10 as the dimension of
+     time and ty4 as the dimension of length and the law of conservation of
+     energy can be calculated from a template generated from the powersets
+     whose type is equal to the type of v^2 in (E1').
 *)
 
 let crush_unnecessary_tvars1 tenv vars =
@@ -193,7 +257,7 @@ let infer (cs : constr list) : (Tenv.t * Typ.t list) =
 
   let program_vars = vars_of_constraints cs in
 
-  (* multiply each monomial of polynomial in `cs` by auxiliary variables *)
+  (* multiply each monomial of polynomial in [cs] by auxiliary variables *)
   let cs =
     (* auxiliary variables used only in type inference *)
     let avar_id = Id.unique ~prefix:"inf" in
