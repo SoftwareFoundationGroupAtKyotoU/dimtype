@@ -253,23 +253,26 @@ let crush_unnecessary_tvars2 tenv vars =
   in
   loop tenv (Tenv.cods tenv)
 
-let infer (cs : constr list) : (Tenv.t * Typ.t list) =
+let infer ?(heuristic=true) (cs : constr list) : (Tenv.t * Typ.t list) =
 
   let program_vars = vars_of_constraints cs in
 
   (* multiply each monomial of polynomial in [cs] by auxiliary variables *)
   let cs =
-    (* auxiliary variables used only in type inference *)
-    let avar_id = Id.unique ~prefix:"inf" in
-    let append_aux_tvars p =
-      Polynomial.map
-        (fun (ps, c) -> (Powerset.(mul ps (avar_id () |> unit)), c))
-        p
-    in
-    List.map (function
-    | Eq (x, p) -> Eq (x, append_aux_tvars p)
-    | Po p      -> Po (append_aux_tvars p)
-    ) cs
+    if not heuristic
+    then cs
+    else
+      (* auxiliary variables used only in type inference *)
+      let avar_id = Id.unique ~prefix:"inf" in
+      let append_aux_tvars p =
+        Polynomial.map
+          (fun (ps, c) -> (Powerset.(mul ps (avar_id () |> unit)), c))
+          p
+      in
+      List.map (function
+      | Eq (x, p) -> Eq (x, append_aux_tvars p)
+      | Po p      -> Po (append_aux_tvars p)
+      ) cs
   in
 
   (* [vars] includes auxiliary variables *)
@@ -292,8 +295,14 @@ let infer (cs : constr list) : (Tenv.t * Typ.t list) =
       tenv
   in
 
-  let tenv = crush_unnecessary_tvars1 tenv program_vars in
-  let tenv = crush_unnecessary_tvars2 tenv program_vars in
+  let tenv =
+    if not heuristic
+    then tenv
+    else
+      crush_unnecessary_tvars2
+        (crush_unnecessary_tvars1 tenv program_vars)
+        program_vars
+  in
 
   let avars = List.filter (fun v -> not (mem ~eq:Id.eq v program_vars)) vars
   in
