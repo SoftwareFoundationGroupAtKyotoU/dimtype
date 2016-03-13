@@ -123,6 +123,22 @@ module Polynomial : sig
   val of_list : (Powerset.t * Num.num) list -> t
   val to_list : t -> (Powerset.t * Num.num) list
 
+  (** [Polynomial.make l] constructs the polynomial from [l].
+
+      For example:
+      {[
+        (* 2xy^2 + x^2y *)
+        Polynomial.make [ [("x", 1); ("y", 2)], Num.num_of_int 2
+                        ; [("x", 2); ("y", 1)], Num.num_of_int 1
+                        ]
+      ]}
+  *)
+  val make : ((string * int) list * Num.num) list -> t
+
+  (** [Polynomial.inspect p] returns the list expression of [p].
+      This function is an inverse of [Polynomial.make]. *)
+  val inspect : t -> ((string * int) list * Num.num) list
+
   val map : (Powerset.t * Num.num -> Powerset.t * Num.num) -> t -> t
   val vars : t -> Id.t list
   val bases : t -> Powerset.t list

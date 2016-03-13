@@ -251,6 +251,19 @@ module Polynomial = struct
 
   let to_list = P.to_list
 
+  let make l =
+    let powersets =
+      List.map (fun (p, c) ->
+        (Powerset.of_list (List.map (fun (x, i) -> (Id.of_string x, i)) p), c))
+        l
+    in
+    of_list powersets
+
+  let inspect (p : t) =
+    List.map (fun (ps, c) ->
+      List.map (fun (x, i) -> Id.to_string x, i) (Powerset.to_list ps), c)
+      (to_list p)
+
   let map f p = List.map f (of_list p) |> to_list |> P.normalize
 
   let vars p = List.map Powerset.vars (P.bases p)
