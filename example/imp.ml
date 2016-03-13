@@ -67,7 +67,7 @@ let polynomial_of_bexp (Eq (a1, a2) | Ne (a1, a2)) =
   Polynomial.add (polynomial_of_aexp a1) (polynomial_of_aexp a2)
 
 let rec extract_constr =
-  let open Dimtype in function
+  let open Solver in function
     | Assign xs ->
        List.map
          (fun (x, a) -> Eq (Id.of_string x, polynomial_of_aexp a))
@@ -88,11 +88,11 @@ let pp_typlist fmt typs =
     typs
 
 let test program =
-  let (tenv, ctenv) = Dimtype.infer (extract_constr program) in
+  let (tenv, ctenv) = Solver.infer (extract_constr program) in
   Format.printf
     "program:@.@[<v 0>%a@]@.@.tenv: %a@.ctenv: %a@.@."
     pp_comm program
-    Dimtype.Tenv.pp tenv
+    Solver.Tenv.pp tenv
     pp_typlist ctenv
 
 

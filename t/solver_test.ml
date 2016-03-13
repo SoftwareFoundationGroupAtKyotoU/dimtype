@@ -1,6 +1,6 @@
 open Util
 open Algebra
-open Dimtype
+open Solver
 
 let pp_typlist fmt typs =
   let open Format in

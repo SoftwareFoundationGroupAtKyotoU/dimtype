@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: e82375b02c3ed1e406fa17d1a81a79e5)
-version = "1.0.0"
+# DO NOT EDIT (digest: 9ef9af93575dfc9c2e8eb49744894a1e)
+version = "0.1"
 description = "Dimension type system"
 requires = "num str"
 archive(byte) = "dimtype.cma"

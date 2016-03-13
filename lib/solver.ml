@@ -317,4 +317,3 @@ let infer ?(heuristic=true) (cs : constr list) : (Tenv.t * Typ.t list) =
       if Typ.is_empty typ || mem ~eq:Typ.eq typ ctenv then ctenv else typ :: ctenv)
     (tenv, [])
     avars
-
