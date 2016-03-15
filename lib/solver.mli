@@ -1,4 +1,4 @@
-(** Dimtype is a main module. *)
+(** Solver is a main module. *)
 
 open Algebra
 
@@ -18,11 +18,11 @@ type constr =
   | Eq of Id.t * Polynomial.t
   | Po of Polynomial.t
 
-(** [Solver.infer ~naive cs] infers the type environment consistent with
-    [cs].  This function returns two environments [tenv] and [ctenv],
-    where [tenv] is a normal type environment and [ctenv] is a type
-    environment for constants.  If [heuristic] is true [Dimtype.infer]
-    applies a heuristic which tries to type program variables as
-    non-dimensionless as possible (see comments in dimtype.ml for more
-    details).  [heuristic] is true by default. *)
+(** [Solver.infer ~heuristic cs] infers the type environment
+    consistent with [cs].  This function returns two environments
+    [tenv] and [ctenv], where [tenv] is a normal type environment and
+    [ctenv] is a type environment for constants.  If [heuristic] is
+    true this function applies a heuristic which tries to type program
+    variables as non-dimensionless as possible (see comments in
+    solver.ml for more details).  [heuristic] is true by default. *)
 val infer : ?heuristic:bool -> constr list -> Tenv.t * Typ.t list
