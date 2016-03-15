@@ -5,7 +5,7 @@ maintainer: "kinoshita.minoru22@gmail.com"
 authors: ["KINOSHITA Minoru"]
 homepage: "https://github.com/SoftwareFoundationGroupAtKyotoU/dimtype"
 bug-reports: "https://github.com/SoftwareFoundationGroupAtKyotoU/dimtype/issues"
-license: "CC-BY-NC-SA"
+license: "MIT"
 dev-repo: "https://github.com/SoftwareFoundationGroupAtKyotoU/dimtype.git"
 build: [
   ["./configure"]
