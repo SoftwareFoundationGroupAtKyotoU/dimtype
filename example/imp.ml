@@ -1,5 +1,9 @@
 open Algebra
 
+(* Imp: an example imperative language. *)
+
+(* Definition of Imp. *)
+
 type id = string
 
 type aexp =
@@ -17,6 +21,8 @@ type comm =
   | If of bexp * comm * comm
   | While of bexp * comm
   | Seq of comm * comm
+
+(* Printers for Imp. *)
 
 let rec pp_aexp fmt =
   let open Format in function
@@ -56,6 +62,8 @@ let rec pp_comm fmt =
     | Seq (c1, c2) ->
        fprintf fmt "@[<v 0>%a;@;%a@]" pp_comm c1 pp_comm c2
 
+(* Translate Imp components into polynomials. *)
+
 let rec polynomial_of_aexp =
   let open Polynomial in function
     | Const i      -> const (Num.num_of_int i)
@@ -65,6 +73,9 @@ let rec polynomial_of_aexp =
 
 let polynomial_of_bexp (Eq (a1, a2) | Ne (a1, a2)) =
   Polynomial.add (polynomial_of_aexp a1) (polynomial_of_aexp a2)
+
+(* Extract dimensional constraints from Imp program using translators
+   defined above. *)
 
 let rec extract_constr =
   let open Solver in function
@@ -79,6 +90,8 @@ let rec extract_constr =
     | While (b, c) -> Po (polynomial_of_bexp b) :: extract_constr c
     | Seq (c1, c2) -> extract_constr c1 @ extract_constr c2
 
+(* An auxiliary function to print type lists. *)
+
 let pp_typlist fmt typs =
   let open Format in
   fprintf fmt "@[<2>[%a]@]"
@@ -86,6 +99,8 @@ let pp_typlist fmt typs =
        ~pp_sep:(fun fmt () -> pp_print_string fmt ", ")
        (Typ.pp ~logarithm:true))
     typs
+
+(* An auxiliary function to execute type inferrence from a given program. *)
 
 let test program =
   let (tenv, ctenv) = Solver.infer (extract_constr program) in
@@ -95,16 +110,18 @@ let test program =
     Solver.Tenv.pp tenv
     pp_typlist ctenv
 
+(* Some tests to infer dimension type environments of imp programs. *)
 
+(* x, v, t := x + v * dt, v + a * dt, t + dt *)
 let accel =
-  (* x, v, t := x + v * dt, v + a * dt, t + dt *)
   test (Assign [ ("x", Add (Var "x", Mul (Var "v", Var "dt")))
                ; ("v", Add (Var "v", Mul (Var "a", Var "dt")))
                ; ("t", Add (Var "t", Var "dt"))
                ])
 
+(* A program to calculate quotient and remainder of two natural numbers.
+   Subtraction is abstracted to addition. *)
 let mannadiv =
-  (* subtraction is abstracted as addition *)
   test (Seq ( Assign [ ("y1", Const 0)
                      ; ("y2", Const 0)
                      ; ("y3", Var "x1")
