@@ -82,6 +82,24 @@ module Vect : sig
     val mapv : (coeff -> coeff) -> t -> t
     val filter : (basis * coeff -> bool) -> t -> t
     val filterv : (coeff -> bool) -> t -> t
+
+    (** [Algebra.Vect.eval f v] evaluates [v] using [f].
+
+        {[
+        open Algebra
+
+        let f b =
+          match Id.of_string b with
+          | "x" -> Num.num_of_int 1
+          | "y" -> Num.num_of_int 2
+          | _   -> failwith "not_found"
+
+        let v = Vect.of_list [(Id.of_string "x", 2); (Id.of_string "y", -3)]
+
+        let () = assert (Vect.eval f v = Num.num_of_int (-4))
+        ]}
+    *)
+    val eval : (basis -> coeff) -> t -> coeff
     val pp : pp_empty:(Format.formatter -> unit -> unit)
       -> pp_sep:(Format.formatter -> unit -> unit)
       -> pp_pair:(Format.formatter -> (basis * coeff) -> unit)

@@ -324,3 +324,142 @@ let infer ?(heuristic=true) (cs : constr list) : (Tenv.t * Typ.t list) =
       if Typ.is_empty typ || mem ~eq:Typ.eq typ ctenv then ctenv else typ :: ctenv)
     (tenv, [])
     avars
+
+exception No_solution
+
+(* This version of [solve_tyconstr] can solve equations which include
+   constants (bad implementation). *)
+let solve_tyconstr2 (eqns : tyconstr list) : (Id.t * Typ.t) list =
+  let rec solve sol eqns =
+    match eqns with
+    | []          -> sol
+    | eqn :: rest ->
+      begin
+        match Typ.to_list eqn with
+        | []          -> solve sol rest
+        | [x, c] when Id.to_string x = "const" -> raise No_solution
+        | (x, c) :: v ->
+           if Id.to_string x = "const"
+           then
+             solve sol ((Typ.of_list (v @ [x, c])) :: rest)
+           else
+             let v = Typ.(scalar Num.(ni (-1) // c) (of_list v)) in
+             let sol = List.map (fun (y, v') -> y, Typ.subst v' x v) sol in
+             let rest = List.map (fun v' -> Typ.subst v' x v) rest in
+             solve ((x, v) :: sol) rest
+      end
+  in
+  solve [] eqns
+
+exception Last_combination
+
+(* Enumerate all integer elements in [lo,hi]^n. *)
+let enum_ranges lo hi n =
+  let rec next_combination = function
+    | []        -> raise Last_combination
+    | x :: rest ->
+       if x = hi
+       then lo :: next_combination rest
+       else (x + 1) :: rest
+  in
+  let rec loop last acc =
+    try
+      let next = next_combination last in
+      loop next (last :: acc)
+    with
+      Last_combination -> last :: acc
+  in
+  loop (ntimes (fun _ -> 0) n) []
+
+let enum_monomials ~max_degree (tenv, ctenv) typ =
+  (* Fake constants as variables. *)
+  let constants =
+    let f = Id.unique ~prefix:"constant" in
+    List.map (fun _ -> f ()) ctenv
+  in
+  let tenv =
+    List.fold_left
+      (fun acc (c, typ) -> Tenv.add_overwrite c typ acc)
+      tenv
+      (List.combine constants ctenv)
+  in
+
+  let vars     = Tenv.doms tenv in
+  let const_id = Id.of_string "const" in
+
+  (* Construct constraints.  Use the program variable names as the
+     parameters of constraints. *)
+  let constraints =
+    List.map
+      (fun (d, c) ->
+        (const_id, Num.(ni 0 -/ c))
+        :: (List.map (fun v -> (v, Typ.coeff d (Tenv.find v tenv))) vars)
+        |> Typ.of_list)
+      (Typ.to_list typ)
+  in
+
+  try
+
+    (* Solve the constraint and split them into dependent parameters and
+       independent parameters. *)
+    let sol = solve_tyconstr2 constraints in
+    let dependent_params = List.map fst sol in
+    let independent_params =
+      List.filter (fun v -> not (mem ~eq:Id.eq v dependent_params)) vars
+    in
+
+    (* All the possible values of [independent_params]. *)
+    let assigns =
+      List.map
+        (List.map ni)
+        (enum_ranges 0 max_degree (List.length independent_params))
+    in
+
+    (* Calculate the values of [dependent_params] by assigning [assign]
+       values. *)
+    let substitute (assign : (Id.t * Num.num) list) =
+      let valuate d =
+        if Id.to_string d = "const"
+        then ni 1
+        else assoc ~eq:Id.eq d assign
+      in
+      List.map
+        (fun (v, typ) -> (v, Typ.eval valuate typ))
+        sol
+    in
+
+    (* Calculate the values of [dependent_params] and return the values if
+       they are in the range of 0 to max_degree. *)
+    let try_to_assign assigns : (Id.t * Num.num) list list =
+      let rec loop acc = function
+        | []             -> acc
+        | assign :: rest ->
+           let assign_pairs = List.combine independent_params assign in
+           let substed      = substitute assign_pairs in
+           let all_positive = List.for_all (fun (_, d) -> Num.(ni 0 <= d)) substed in
+           let degree       =
+             List.fold_left
+               (fun acc (_, d) -> Num.(acc +/ d)) (ni 0)
+               (substed @ assign_pairs)
+           in
+           if all_positive && Num.(degree <= ni max_degree)
+           then loop ((substed @ assign_pairs) :: acc) rest
+           else loop acc rest
+      in
+      loop [] assigns
+    in
+
+    let res =
+      try_to_assign assigns
+      |> List.map (List.map (fun (x, v) -> Id.to_string x, v))
+      |> List.map (List.filter (fun (x, _) ->
+        String.length x < 8 || String.sub x 0 8 <> "constant")) (* remove constants *)
+      |> remove_duplicates
+          ~eq:(fun x y -> List.sort_uniq compare x = List.sort_uniq compare y)
+    in
+
+    res
+
+  with
+
+    No_solution -> []

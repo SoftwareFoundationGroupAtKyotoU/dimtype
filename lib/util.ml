@@ -27,6 +27,14 @@ let remove_duplicates ~eq l =
   in
   List.rev (loop [] l)
 
+(* [f 1; f 2; ...; f n] *)
+let ntimes f n =
+  let rec loop acc = function
+    | 0 -> acc
+    | n -> loop (f n :: acc) (n - 1)
+  in
+  List.rev (loop [] n)
+
 (* Association lists *)
 
 let rec assoc ~eq a = function

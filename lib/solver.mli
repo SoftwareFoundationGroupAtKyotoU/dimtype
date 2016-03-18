@@ -3,7 +3,7 @@
 open Algebra
 
 module Tenv : sig
-  include Algebra.Environment.S
+  include Algebra.Environment.S with type dom = Id.t and type cod = Typ.t
 
   val pp : Format.formatter -> t -> unit
   val to_string : t -> string
@@ -26,3 +26,8 @@ type constr =
     variables as non-dimensionless as possible (see comments in
     solver.ml for more details).  [heuristic] is true by default. *)
 val infer : ?heuristic:bool -> constr list -> Tenv.t * Typ.t list
+
+val enum_monomials : max_degree:int
+                     -> (Tenv.t * Typ.t list)
+                     -> Typ.t
+                     -> (string * Num.num) list list

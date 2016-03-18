@@ -131,6 +131,7 @@ module Vect = struct
     val mapv : (coeff -> coeff) -> t -> t
     val filter : (basis * coeff -> bool) -> t -> t
     val filterv : (coeff -> bool) -> t -> t
+    val eval : (basis -> coeff) -> t -> coeff
     val pp : pp_empty:(Format.formatter -> unit -> unit)
       -> pp_sep:(Format.formatter -> unit -> unit)
       -> pp_pair:(Format.formatter -> (basis * coeff) -> unit)
@@ -145,9 +146,6 @@ module Vect = struct
     module E = Environment.Make(Basis)(Coeff)
     type t = E.t
 
-    let to_list = E.to_list
-    let of_list = E.of_list
-
     let bases v = E.doms v
 
     let unit b = E.(add_overwrite b Coeff.one empty)
@@ -159,6 +157,9 @@ module Vect = struct
     let size = E.size
 
     let normalize v = E.filterv (fun c -> not Coeff.(eq c zero)) v
+
+    let to_list = E.to_list
+    let of_list l = E.of_list l |> normalize
 
     let eq v1 v2 = E.eq (normalize v1) (normalize v2)
 
@@ -196,6 +197,11 @@ module Vect = struct
     let mapv = E.mapv
     let filter = E.filter
     let filterv = E.filterv
+
+    let eval f v =
+      List.fold_left (fun acc (x, c) -> Coeff.(acc + f x * c))
+        Coeff.zero
+        v
 
     let pp ~pp_empty ~pp_sep ~pp_pair fmt v =
       if E.is_empty v

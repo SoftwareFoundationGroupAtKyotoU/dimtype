@@ -1,3 +1,4 @@
+open Util
 open Algebra
 
 (* Imp: an example imperative language. *)
@@ -90,8 +91,6 @@ let rec extract_constr =
     | While (b, c) -> Po (polynomial_of_bexp b) :: extract_constr c
     | Seq (c1, c2) -> extract_constr c1 @ extract_constr c2
 
-(* An auxiliary function to print type lists. *)
-
 let pp_typlist fmt typs =
   let open Format in
   fprintf fmt "@[<2>[%a]@]"
@@ -100,37 +99,75 @@ let pp_typlist fmt typs =
        (Typ.pp ~logarithm:true))
     typs
 
-(* An auxiliary function to execute type inferrence from a given program. *)
-
-let test program =
-  let (tenv, ctenv) = Solver.infer (extract_constr program) in
+let dump_envs program tenv ctenv =
   Format.printf
     "program:@.@[<v 0>%a@]@.@.tenv: %a@.ctenv: %a@.@."
     pp_comm program
     Solver.Tenv.pp tenv
     pp_typlist ctenv
 
+let pp_monomials fmt monomials =
+  let open Format in
+  pp_print_list
+    ~pp_sep:(fun fmt () -> fprintf fmt "@.")
+    (pp_print_list
+       ~pp_sep:(fun fmt () -> fprintf fmt "*")
+       (fun fmt (x, c) ->
+          if c = ni 1
+          then fprintf fmt "%s" x
+          else fprintf fmt "%s^%a" x pp_num c))
+    fmt
+    (List.map (List.filter (fun (x, d) -> Num.(d >= ni 1))) monomials)
+
 (* Some tests to infer dimension type environments of imp programs. *)
 
 (* x, v, t := x + v * dt, v + a * dt, t + dt *)
 let accel =
-  test (Assign [ ("x", Add (Var "x", Mul (Var "v", Var "dt")))
-               ; ("v", Add (Var "v", Mul (Var "a", Var "dt")))
-               ; ("t", Add (Var "t", Var "dt"))
-               ])
+  Assign [ ("x", Add (Var "x", Mul (Var "v", Var "dt")))
+         ; ("v", Add (Var "v", Mul (Var "a", Var "dt")))
+         ; ("t", Add (Var "t", Var "dt"))
+         ]
+
+let () =
+  let (tenv, ctenv) = Solver.infer (extract_constr accel) in
+
+  dump_envs accel tenv ctenv;
+
+  let typ_of_v  = Solver.Tenv.find (Id.of_string "v") tenv in
+  let typ_of_v2 = Typ.scalar (ni 2) typ_of_v in
+  let res = Solver.enum_monomials ~max_degree:4 (tenv, ctenv) typ_of_v2 in
+
+  Format.printf
+    "monomials whose types are same as the type of v^2:@.%a@.@."
+    pp_monomials res
 
 (* A program to calculate quotient and remainder of two natural numbers.
    Subtraction is abstracted to addition. *)
 let mannadiv =
-  test (Seq ( Assign [ ("y1", Const 0)
-                     ; ("y2", Const 0)
-                     ; ("y3", Var "x1")
-                     ]
-            , (While (Ne (Var "y3", Const 0)
-                     , If ( Eq (Add (Var "x2", Add (Var "y2", Const 1)), Const 0)
-                          , Assign [ ("y1", Add (Var "y1", Const 1))
-                                   ; ("y2", Const 0)
-                                   ; ("y3", Add (Var "y3", Const 1)) ]
-                          , Assign [ ("y2", Add (Var "y2", Const 1))
-                                   ; ("y3", Add (Var "y3", Const 1))
-                                   ])))))
+  Seq ( Assign [ ("y1", Const 0)
+               ; ("y2", Const 0)
+               ; ("y3", Var "x1")
+               ]
+      , (While (Ne (Var "y3", Const 0)
+               , If ( Eq (Add (Var "x2", Add (Var "y2", Const 1)), Const 0)
+                    , Assign [ ("y1", Add (Var "y1", Const 1))
+                             ; ("y2", Const 0)
+                             ; ("y3", Add (Var "y3", Const 1)) ]
+                    , Assign [ ("y2", Add (Var "y2", Const 1))
+                             ; ("y3", Add (Var "y3", Const 1))
+                             ]))))
+
+let () =
+  let (tenv, ctenv) = Solver.infer (extract_constr mannadiv) in
+
+  dump_envs mannadiv tenv ctenv;
+
+  let typ_of_y1 = Solver.Tenv.find (Id.of_string "y1") tenv in
+  let typ_of_x2 = Solver.Tenv.find (Id.of_string "x2") tenv in
+  let typ_of_y3 = Solver.Tenv.find (Id.of_string "y3") tenv in
+  let typ = Typ.(add typ_of_y1 (add typ_of_x2 typ_of_y3)) in
+  let res = Solver.enum_monomials ~max_degree:3 (tenv, ctenv) typ in
+
+  Format.printf
+    "monomials whose types are same as the type of y1*x2*y3:@.%a@.@."
+    pp_monomials res
