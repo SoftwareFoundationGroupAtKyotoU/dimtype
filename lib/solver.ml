@@ -371,7 +371,7 @@ let enum_ranges lo hi n =
   in
   loop (ntimes (fun _ -> 0) n) []
 
-let enum_monomials ~max_degree (tenv, ctenv) typ =
+let enum_powersets ~max_degree (tenv, ctenv) typ =
   (* Fake constants as variables. *)
   let constants =
     let f = Id.unique ~prefix:"constant" in
@@ -449,16 +449,21 @@ let enum_monomials ~max_degree (tenv, ctenv) typ =
       loop [] assigns
     in
 
-    let res =
-      try_to_assign assigns
-      |> List.map (List.map (fun (x, v) -> Id.to_string x, v))
-      |> List.map (List.filter (fun (x, _) ->
-        String.length x < 8 || String.sub x 0 8 <> "constant")) (* remove constants *)
-      |> remove_duplicates
-          ~eq:(fun x y -> List.sort_uniq compare x = List.sort_uniq compare y)
+    let is_constant x =
+      let x = Id.to_string x in
+      String.length x >= 8 && String.sub x 0 8 = "constant"
     in
 
-    res
+    try_to_assign assigns
+
+    (* remove constants *)
+    |> List.map (List.filter (fun (x, _) -> not (is_constant x)))
+
+    (* convert into powersets.  WARN that [Num.int_of_num] can lose
+       accurate information. *)
+    |> List.map (List.map (fun (x, v) -> x, Num.int_of_num v))
+    |> List.map Powerset.of_list
+    |> remove_duplicates ~eq:Powerset.eq
 
   with
 

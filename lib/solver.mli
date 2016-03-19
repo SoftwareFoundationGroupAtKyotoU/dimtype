@@ -27,7 +27,11 @@ type constr =
     solver.ml for more details).  [heuristic] is true by default. *)
 val infer : ?heuristic:bool -> constr list -> Tenv.t * Typ.t list
 
-val enum_monomials : max_degree:int
+(** [Solver.enum_powersets ~max_degree (tenv, ctenv) typ] enumerates
+    the powersets whose types are same as [typ] under the type
+    environment [tenv] and the constant type environment [ctenv].
+    The degrees of powersets don't exceed [max_degree]. *)
+val enum_powersets : max_degree:int
                      -> (Tenv.t * Typ.t list)
                      -> Typ.t
-                     -> (string * Num.num) list list
+                     -> Powerset.t list

@@ -106,19 +106,6 @@ let dump_envs program tenv ctenv =
     Solver.Tenv.pp tenv
     pp_typlist ctenv
 
-let pp_monomials fmt monomials =
-  let open Format in
-  pp_print_list
-    ~pp_sep:(fun fmt () -> fprintf fmt "@.")
-    (pp_print_list
-       ~pp_sep:(fun fmt () -> fprintf fmt "*")
-       (fun fmt (x, c) ->
-          if c = ni 1
-          then fprintf fmt "%s" x
-          else fprintf fmt "%s^%a" x pp_num c))
-    fmt
-    (List.map (List.filter (fun (x, d) -> Num.(d >= ni 1))) monomials)
-
 (* Some tests to infer dimension type environments of imp programs. *)
 
 (* x, v, t := x + v * dt, v + a * dt, t + dt *)
@@ -135,11 +122,15 @@ let () =
 
   let typ_of_v  = Solver.Tenv.find (Id.of_string "v") tenv in
   let typ_of_v2 = Typ.scalar (ni 2) typ_of_v in
-  let res = Solver.enum_monomials ~max_degree:4 (tenv, ctenv) typ_of_v2 in
+  let res = Solver.enum_powersets ~max_degree:4 (tenv, ctenv) typ_of_v2 in
 
-  Format.printf
+  let open Format in
+  printf
     "monomials whose types are same as the type of v^2:@.%a@.@."
-    pp_monomials res
+    (pp_print_list
+       ~pp_sep:(fun fmt () -> fprintf fmt ",@ ")
+       Powerset.pp)
+    res
 
 (* A program to calculate quotient and remainder of two natural numbers.
    Subtraction is abstracted to addition. *)
@@ -166,8 +157,12 @@ let () =
   let typ_of_x2 = Solver.Tenv.find (Id.of_string "x2") tenv in
   let typ_of_y3 = Solver.Tenv.find (Id.of_string "y3") tenv in
   let typ = Typ.(add typ_of_y1 (add typ_of_x2 typ_of_y3)) in
-  let res = Solver.enum_monomials ~max_degree:3 (tenv, ctenv) typ in
+  let res = Solver.enum_powersets ~max_degree:3 (tenv, ctenv) typ in
 
-  Format.printf
+  let open Format in
+  printf
     "monomials whose types are same as the type of y1*x2*y3:@.%a@.@."
-    pp_monomials res
+    (pp_print_list
+       ~pp_sep:(fun fmt () -> fprintf fmt ",@ ")
+       Powerset.pp)
+    res

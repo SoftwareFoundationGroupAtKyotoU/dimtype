@@ -237,9 +237,12 @@ module Powerset = struct
   let eq        = Vect.Int.eq
   let pp fmt ps =
     Vect.Int.pp
-      ~pp_empty:(fun fmt () -> Format.fprintf fmt "")
-      ~pp_sep:(fun fmt () -> Format.fprintf fmt "")
-      ~pp_pair:(fun fmt (v, p) -> Format.fprintf fmt "%a^%a" Id.pp v pp_int p)
+      ~pp_empty:(fun fmt () -> Format.fprintf fmt "1")
+      ~pp_sep:(fun fmt () -> Format.fprintf fmt "*")
+      ~pp_pair:(fun fmt (v, p) ->
+        if p = 1
+        then Format.fprintf fmt "%a" Id.pp v
+        else Format.fprintf fmt "%a^%a" Id.pp v pp_int p)
       fmt ps
 
   let to_string = string_of pp
