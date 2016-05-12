@@ -12,6 +12,7 @@ Library "dimtype"
   Modules: Solver, Algebra, Typ, Id
   InternalModules: Util
   BuildDepends: num, str
+  Pack: true
 
 AlphaFeatures: ocamlbuild_more_args
 Document "dimtype"

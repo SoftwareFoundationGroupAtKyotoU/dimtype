@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: eb85a84371bfba0d6f55e89ed9242e55)
+# DO NOT EDIT (digest: 8e05e5a0508f07d9b052d104a72f4a4e)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,6 +16,11 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library dimtype
 "lib/dimtype.cmxs": use_dimtype
+"lib/solver.cmx": for-pack(Dimtype)
+"lib/algebra.cmx": for-pack(Dimtype)
+"lib/typ.cmx": for-pack(Dimtype)
+"lib/id.cmx": for-pack(Dimtype)
+"lib/util.cmx": for-pack(Dimtype)
 <lib/*.ml{,i,y}>: pkg_num
 <lib/*.ml{,i,y}>: pkg_str
 # Executable test_suite
