@@ -18,6 +18,8 @@ type constr =
   | Eq of Id.t * Polynomial.t
   | Po of Polynomial.t
 
+val pp_constr : Format.formatter -> constr -> unit
+
 (** [Solver.infer ~heuristic cs] infers the type environment
     consistent with [cs].  This function returns two environments
     [tenv] and [ctenv], where [tenv] is a normal type environment and
@@ -25,7 +27,7 @@ type constr =
     true this function applies a heuristic which tries to type program
     variables as non-dimensionless as possible (see comments in
     solver.ml for more details).  [heuristic] is true by default. *)
-val infer : ?heuristic:bool -> constr list -> Tenv.t * Typ.t list
+val infer : ?heuristic:bool -> constr list -> Tenv.t * Typ.t list * (constr * Typ.t) list
 
 (** [Solver.enum_powersets ~max_degree (tenv, ctenv) typ] enumerates
     the powersets whose types are same as [typ] under the type
