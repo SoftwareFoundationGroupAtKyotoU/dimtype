@@ -28,7 +28,7 @@ let execute () =
     ; Powerset.of_list [ (x, 1); (z, 2) ], ni 3
     ]
   in
-  let tenv, _ = infer [Po p1] in
+  let tenv, _, _ = infer [Po p1] in
   print_endline ((Tenv.to_string tenv) ^ "\n");
 
   let cs =
@@ -40,7 +40,7 @@ let execute () =
                                 ; Powerset.of_list [ (dt, 1) ], ni 1 ])
     ]
   in
-  let tenv, _ = infer cs in
+  let tenv, _, _ = infer cs in
   print_endline (Tenv.to_string tenv);
 
   let aux n = Id.of_string ("aux" ^ string_of_int n) in
@@ -53,13 +53,13 @@ let execute () =
                                 ; Powerset.of_list [ (aux 5, 1); (dt, 1) ], ni 1 ])
     ]
   in
-  let tenv, _ = infer cs in
+  let tenv, _, _ = infer cs in
   print_endline (Tenv.to_string tenv);
 
   let cs = [ Po (Polynomial.of_list [ Powerset.of_list [ (x, 1) ], ni 1
                                     ; Powerset.of_list [ (x, 2) ], ni 1 ]) ]
   in
-  let tenv, ctenv = infer cs in
+  let tenv, ctenv, _ = infer cs in
   Format.(
     fprintf std_formatter "ctenv: %a@.tenv: %a@."
       (pp_print_list

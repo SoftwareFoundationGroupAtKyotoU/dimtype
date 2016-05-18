@@ -16,6 +16,10 @@ type constr =
   | Eq of Id.t * Polynomial.t
   | Po of Polynomial.t
 
+let pp_constr fmt = function
+  | Eq(x,p) -> Format.fprintf fmt "%a:=%a" Id.pp x Polynomial.pp p
+  | Po p -> Format.fprintf fmt "OK(%a)" Polynomial.pp p
+
 let vars_of_constraints cs =
   let vars_of_constr = function
     | Eq (x, p) -> x :: Polynomial.vars p
@@ -260,7 +264,7 @@ let crush_unnecessary_tvars2 tenv vars =
   in
   loop tenv (Tenv.cods tenv)
 
-let infer ?(heuristic=true) (cs : constr list) : (Tenv.t * Typ.t list) =
+let infer ?(heuristic=true) (cs : constr list) : (Tenv.t * Typ.t list * (constr * Typ.t) list) =
 
   let program_vars = vars_of_constraints cs in
 
@@ -277,9 +281,9 @@ let infer ?(heuristic=true) (cs : constr list) : (Tenv.t * Typ.t list) =
           p
       in
       List.map (function
-      | Eq (x, p) -> Eq (x, append_aux_tvars p)
-      | Po p      -> Po (append_aux_tvars p)
-      ) cs
+                 | Eq (x, p) -> Eq (x, append_aux_tvars p)
+                 | Po p      -> Po (append_aux_tvars p)
+               ) cs
   in
 
   (* [vars] includes auxiliary variables *)
@@ -302,6 +306,36 @@ let infer ?(heuristic=true) (cs : constr list) : (Tenv.t * Typ.t list) =
       tenv
   in
 
+  let rec type_of_powerset tenv ps =
+    let module P = Algebra.Powerset in
+    let module E = Tenv in
+    let module V = Algebra.Vect in
+    let ps = List.map (fun (x,n) -> (x, Num.num_of_int n)) (P.to_list ps) in
+    List.fold_left (fun t (x,n) -> Typ.(add t (scalar n (E.find x tenv)))) Typ.empty ps
+  in
+  
+  let rec type_of_poly tenv p =
+    let open Algebra.Polynomial in
+    let module V = Algebra.Vect in
+    (*
+    let _ = Format.printf "tenv:%a@\n" Tenv.pp tenv in
+    let _ = Format.printf "p:%a@\n" pp p in
+     *)
+    let l = to_list p in
+    let l = List.map (fun (ps,_) -> type_of_powerset tenv ps) l in
+    match l with
+      [] -> Typ.empty
+    | [hd] -> hd
+    | hd::tl ->
+       List.fold_left
+         (fun v1 v2 ->
+          (* Format.printf "v1:%a@\n" (Typ.pp ~logarithm:true) v1; *)
+          (* Format.printf "v2:%a@\n" (Typ.pp ~logarithm:true) v2; *)
+          assert(Typ.eq v1 v2); v1)
+         hd tl
+  in
+
+  (* let _ = Format.printf "tenv(before):%a@\n" Tenv.pp tenv in *)
   let tenv =
     if not heuristic
     then tenv
@@ -310,20 +344,40 @@ let infer ?(heuristic=true) (cs : constr list) : (Tenv.t * Typ.t list) =
         (crush_unnecessary_tvars1 tenv program_vars)
         program_vars
   in
+  (* let _ = Format.printf "tenv(after):%a@\n" Tenv.pp tenv in *)
 
-  let avars = List.filter (fun v -> not (mem ~eq:Id.eq v program_vars)) vars
+  let avars = List.filter (fun v -> not (mem ~eq:Id.eq v program_vars)) vars in
+  let eliminate_avars p =
+    let module P = Algebra.Polynomial in
+    List.fold_left (fun p x -> P.subst p x (P.const (Num.num_of_int 1))) p avars
+  in
+  let csTyps =
+    List.map
+      (function
+        | Eq(x,p) ->
+           let typ = type_of_poly tenv p in
+           let p = eliminate_avars p in
+           (Eq(x,p)), typ
+        | Po p ->
+           let typ = type_of_poly tenv p in
+           let p = eliminate_avars p in
+           (Po p), typ)
+      cs
   in
 
   (* eliminate auxiliary variables
      - if it is dimensionless, simply removed
      - if it is not dimensionless, add to the constant type environment *)
-  List.fold_left
-    (fun (tenv, ctenv) v ->
-      let typ = Tenv.find v tenv in
-      Tenv.remove v tenv,
-      if Typ.is_empty typ || mem ~eq:Typ.eq typ ctenv then ctenv else typ :: ctenv)
-    (tenv, [])
-    avars
+  let tenv, ctenv =
+    List.fold_left
+      (fun (tenv, ctenv) v ->
+       let typ = Tenv.find v tenv in
+       Tenv.remove v tenv,
+       if Typ.is_empty typ || mem ~eq:Typ.eq typ ctenv then ctenv else typ :: ctenv)
+      (tenv, [])
+      avars
+  in
+  (tenv, ctenv, csTyps)
 
 exception No_solution
 
